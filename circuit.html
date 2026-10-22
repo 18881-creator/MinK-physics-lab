@@ -1,0 +1,186 @@
+<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>직렬·병렬 회로 분석 시뮬레이터</title><style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5fa;color:#1a3048;font-family:'Malgun Gothic',Arial,sans-serif}main{max-width:1150px;margin:28px auto;padding:0 17px 40px}h1{margin:5px 0;font-size:clamp(25px,3vw,35px)}p{line-height:1.55}.mutedtext{color:#63758a}.tag{font-size:12px;letter-spacing:.14em;color:#1669ba;font-weight:bold}.panel{background:#fff;border:1px solid #dce4ee;border-radius:16px;padding:19px;margin-top:14px;box-shadow:0 3px 12px #20406008}h2{font-size:18px;margin:0 0 16px}.tabs,.controls{display:flex;gap:9px;flex-wrap:wrap}button{font:inherit;font-weight:700;border:0;padding:11px 18px;border-radius:9px;cursor:pointer;background:#e7eff8;color:#254b75}button.active,button.primary{background:#1769bf;color:#fff}button:disabled{opacity:.5;cursor:default}.settings{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:16px}label{display:block;font-size:14px;font-weight:bold}label span{float:right;color:#1769bf}input[type=range]{width:100%;margin:15px 0 6px;accent-color:#1769bf}select{padding:10px;border:1px solid #c8d7e8;border-radius:8px;background:white;font:inherit;width:100%;margin:9px 0 0}.flex{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(250px,1fr);gap:14px}.hint{font-size:13px;color:#63758a;margin:10px 0}.drawing{width:100%;height:auto;border:1px solid #dce5ef;border-radius:11px;background:#fbfdff}.stats{display:grid;gap:9px}.stat{background:#eff5fb;border-radius:10px;padding:12px}.stat span{font-size:13px;color:#5a728a}.stat strong{display:block;font-size:21px;color:#1664ad;margin-top:5px}.notice{background:#eef5fb;border-radius:9px;padding:12px;color:#52677f;font-size:14px}.err{color:#ae3f39;font-size:13px;font-weight:bold;min-height:20px}.scroll{overflow-x:auto}table{border-collapse:collapse;width:100%;text-align:center;font-size:14px}td,th{padding:10px;border-bottom:1px solid #e1e9f2}th{background:#f0f6fc}tfoot{font-weight:bold;background:#f4f8fc}.hidden{display:none!important}.wire{fill:none;stroke:#516679;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}.component{fill:white;stroke:#2769a9;stroke-width:3}.plate{stroke:#233c57;stroke-width:3.6}.point{fill:#516679}svg text{font-family:'Malgun Gothic',Arial,sans-serif}.legend{margin:12px 0 0;font-size:13px;color:#62768c}@media(max-width:800px){.flex{grid-template-columns:1fr}}
+</style></head><body><main><header><div class="tag">PHYSICS VIRTUAL LAB</div><h1>직렬·병렬 회로 분석 시뮬레이터</h1><p class="mutedtext">저항 개수를 직접 선택하고 직렬·병렬·혼합 회로의 합성 저항, 전압과 전류의 분배를 비교해 보세요.</p></header>
+<section class="panel"><h2>① 회로 구성</h2><div class="tabs"><button class="active" data-mode="series">직렬 회로</button><button data-mode="parallel">병렬 회로</button><button data-mode="mixed">혼합 회로</button></div><div class="settings" style="margin-top:15px"><label>저항 개수<select id="count"><option value="1">1개</option><option value="2">2개</option><option value="3" selected>3개</option><option value="4">4개</option><option value="5">5개</option><option value="6">6개</option></select></label><label id="splitArea" class="hidden">직렬 부분에 연결할 저항 개수<select id="split"></select></label></div><p class="hint" id="modeInfo"></p></section>
+<section class="panel"><h2>② 실험 조건 설정</h2><div class="settings"><label>전원 전압 <span id="voltOut">0 V</span><input id="volt" type="range" min="0" max="24" step="0.5" value="0"></label><div id="resistors" style="display:contents"></div></div><p class="hint">각 저항은 1~100 Ω에서 선택하세요. 0 Ω은 아직 설정하지 않았음을 의미하며, 모두 설정해야 결과를 확인할 수 있어요. 전원과 도선은 이상적으로 가정합니다.</p><div class="controls"><button class="primary" id="run">▶ 회로 분석</button><button id="reset">↺ 조건 초기화</button><button id="csv" disabled>↓ 결과 CSV 다운로드</button></div><p id="error" class="err" aria-live="polite"></p></section>
+<div class="flex"><section class="panel"><h2>③ 회로도</h2><svg class="drawing" id="circuit" viewBox="0 0 850 450" role="img" aria-label="전원과 저항의 표준 기호로 그린 회로도"></svg><p class="legend">저항: 직사각형 기호(IEC 방식) · 전원: 긴 선(+)과 짧은 선(−) · 수치는 설정한 저항값을 표시</p></section><section class="panel"><h2>④ 전체 회로 분석</h2><div class="stats"><div class="stat"><span>전원 전압</span><strong id="totalV">—</strong></div><div class="stat"><span>합성 저항</span><strong id="totalR">—</strong></div><div class="stat"><span>전체 전류</span><strong id="totalI">—</strong></div></div><p id="message" class="notice">조건을 선택하고 회로 분석을 눌러 주세요.</p></section></div>
+<section class="panel"><h2>⑤ 저항별 분석 결과</h2><p id="empty" class="notice">분석 후 각 저항의 전압·전류·전력을 확인할 수 있어요.</p><div id="tableWrap" class="scroll hidden"><table><thead><tr><th>저항</th><th>저항값 (Ω)</th><th>전압 (V)</th><th>전류 (A)</th><th>소비 전력 (W)</th></tr></thead><tbody id="tbody"></tbody><tfoot><tr id="totals"></tr></tfoot></table></div></section>
+</main><script>
+const $=x=>document.getElementById(x), NS='http://www.w3.org/2000/svg';
+let mode='series', count=3, split=1, result=null;
+let values=Array(6).fill(0);
+function node(type,attr,text){let n=document.createElementNS(NS,type);for(let [k,v] of Object.entries(attr||{}))n.setAttribute(k,v);if(text!==undefined)n.textContent=text;return n}
+function path(svg,d,cls='wire'){svg.appendChild(node('path',{d,class:cls}))}
+function txt(svg,x,y,text,size=16,color='#1e3855',anchor='middle'){svg.appendChild(node('text',{x,y,'text-anchor':anchor,'font-size':size,'font-weight':'700',fill:color},text))}
+function resistor(svg,x,y,i,opt={}){
+  const w=opt.w||58,h=opt.h||24;
+  const labelSize=opt.labelSize||15, valueSize=opt.valueSize||12;
+  const labelDy=(opt.labelDy??-18), valueDy=(opt.valueDy??34);
+  svg.appendChild(node('rect',{x:x-w/2,y:y-h/2,width:w,height:h,rx:1,class:'component'}));
+  txt(svg,x,y+labelDy,'R'+(i+1),labelSize);
+  txt(svg,x,y+valueDy,values[i]+' Ω',valueSize,'#576e83');
+}
+function battery(svg,x,cy,topNodeY=100){
+  path(svg,`M${x} ${topNodeY} V${cy-15} M${x} ${cy+15} V${cy+60}`);
+  svg.appendChild(node('line',{x1:x-23,y1:cy-15,x2:x+23,y2:cy-15,class:'plate'}));
+  svg.appendChild(node('line',{x1:x-12,y1:cy+15,x2:x+12,y2:cy+15,class:'plate'}));
+  txt(svg,x+44,cy-21,'+',19,'#c64c49');
+  txt(svg,x+32,cy+25,'−',19,'#286ba6');
+  txt(svg,x-44,cy+4,'전원',14);
+}
+function dot(svg,x,y){svg.appendChild(node('circle',{cx:x,cy:y,r:4,class:'point'}))}
+function drawSeries(svg){
+  const L=95,R=740,y=100,bottom=300;
+  svg.setAttribute('viewBox','0 0 850 375');
+  battery(svg,L,190);
+  path(svg,`M${L} 250 V${bottom} H${R} V${y} H${L}`);
+  let slots=count+1;
+  for(let i=0;i<count;i++){
+    let x=L+(R-L)*(i+1)/slots;
+    resistor(svg,x,y,i,{labelSize:16,valueSize:12,labelDy:-20,valueDy:34});
+  }
+}
+function drawParallel(svg){
+  // Conventional parallel network: each resistor connects between the SAME TWO rails.
+  // Make the left connection enter at the centre, like the teacher's sketch.
+  const sourceX=95, leftRail=305, rightRail=665, resistorX=485;
+  const firstY=110, gap=94, lastY=firstY+(count-1)*gap;
+  const middleY=(firstY+lastY)/2;
+  const lowerY=Math.max(355,lastY+80);
+  // Position the battery halfway down the left vertical return wire.
+  const batteryCy=(middleY+lowerY)/2;
+  const batteryBottomY=batteryCy+60;
+  svg.setAttribute('viewBox',`0 0 850 ${lowerY+45}`);
+  battery(svg,sourceX,batteryCy,middleY);
+  // Left side: come straight from the battery area into the middle of the parallel block.
+  path(svg,`M${sourceX} ${middleY} H${leftRail}`);
+  // Right side return wire and bottom loop.
+  path(svg,`M${rightRail} ${middleY} H755 V${lowerY} H${sourceX} V${batteryBottomY}`);
+  // Shared pair of equipotential rails. These are the only branching nodes.
+  if(count>1){
+    path(svg,`M${leftRail} ${firstY} V${lastY}`);
+    path(svg,`M${rightRail} ${firstY} V${lastY}`);
+  }
+  for(let i=0;i<count;i++){
+    const y=firstY+i*gap;
+    // The wire ENDS at the resistor terminal, never short-circuits or leaves a gap.
+    path(svg,`M${leftRail} ${y} H${resistorX-29}`);
+    resistor(svg,resistorX,y,i,{labelSize:15,valueSize:12,labelDy:-21,valueDy:35});
+    path(svg,`M${resistorX+29} ${y} H${rightRail}`);
+  }
+  if(count>1){dot(svg,leftRail,middleY);dot(svg,rightRail,middleY)}
+} 
+function drawMixed(svg){
+  // Draw the series part on the SAME height as the middle of the parallel part.
+  const sourceX=95, seriesStart=170, leftRail=435;
+  const rightRail=720, resistorX=575;
+  const branches=count-split, firstY=145, gap=90;
+  const lastY=firstY+(branches-1)*gap;
+  const middleY=(firstY+lastY)/2;
+  const ySeries=middleY;
+  const batteryCy=middleY+55;
+  const batteryBottomY=batteryCy+60;
+  const bottomY=Math.max(360,lastY+85,batteryBottomY+20);
+  svg.setAttribute('viewBox',`0 0 850 ${bottomY+45}`);
+  battery(svg,sourceX,batteryCy,ySeries);
+
+  // Series chain placed on the centre line so it connects smoothly into the parallel network.
+  const seriesEnd=395;
+  const spacing=(seriesEnd-seriesStart)/split;
+  let fromX=sourceX;
+  for(let i=0;i<split;i++){
+    const x=seriesStart+(i+0.5)*spacing;
+    path(svg,`M${fromX} ${ySeries} H${x-23}`);
+    resistor(svg,x,ySeries,i,{w:46,labelSize:13,valueSize:11,labelDy:-19,valueDy:33});
+    fromX=x+23;
+  }
+  path(svg,`M${fromX} ${ySeries} H${leftRail}`);
+
+  // Return path from the parallel network back to the battery negative side.
+  path(svg,`M${rightRail} ${middleY} H780 V${bottomY} H${sourceX} V${batteryBottomY}`);
+
+  // Parallel branches share the same two nodes.
+  path(svg,`M${leftRail} ${firstY} V${lastY}`);
+  path(svg,`M${rightRail} ${firstY} V${lastY}`);
+  for(let j=0;j<branches;j++){
+    const y=firstY+j*gap;
+    path(svg,`M${leftRail} ${y} H${resistorX-29}`);
+    resistor(svg,resistorX,y,split+j,{labelSize:14,valueSize:12,labelDy:-21,valueDy:34});
+    path(svg,`M${resistorX+29} ${y} H${rightRail}`);
+  }
+  dot(svg,leftRail,middleY); dot(svg,rightRail,middleY);
+}
+function draw(){
+  const svg=$('circuit');
+  svg.replaceChildren();
+  if(mode==='series') drawSeries(svg);
+  else if(mode==='parallel') drawParallel(svg);
+  else drawMixed(svg);
+}
+function controls(){
+  count=+$('count').value;
+  if(mode==='mixed'&&count<3){count=3;$('count').value='3';}
+  split=Math.min(Math.max(1,split),count-2);
+  $('splitArea').classList.toggle('hidden',mode!=='mixed');
+  $('count').querySelectorAll('option').forEach(o=>{o.disabled=mode==='mixed'&&+o.value<3});
+  $('split').innerHTML=Array.from({length:count-2},(_,i)=>`<option value="${i+1}" ${split===i+1?'selected':''}>${i+1}개</option>`).join('');
+  $('resistors').innerHTML=Array.from({length:count},(_,i)=>`<label>저항 R${i+1} <span id="rout${i}">${values[i]} Ω</span><input type="range" id="res${i}" min="0" max="100" step="1" value="${values[i]}"></label>`).join('');
+  for(let i=0;i<count;i++) $('res'+i).addEventListener('input',e=>{values[i]=+e.target.value;$('rout'+i).textContent=values[i]+' Ω';clear()});
+  $('modeInfo').textContent = mode==='series' ? `R1부터 R${count}까지 모두 직렬로 연결됩니다.` : mode==='parallel' ? `R1부터 R${count}까지 모두 병렬로 연결됩니다.` : `R1~R${split} 직렬 연결 + R${split+1}~R${count} 병렬 연결 (두 부분은 직렬 연결)`;
+  clear();
+}
+function clear(){
+  result=null;
+  $('totalV').textContent='—'; $('totalR').textContent='—'; $('totalI').textContent='—';
+  $('message').textContent='조건을 선택하고 회로 분석을 눌러 주세요.';
+  $('empty').classList.remove('hidden'); $('tableWrap').classList.add('hidden'); $('csv').disabled=true; $('error').textContent='';
+  draw();
+}
+function calc(){
+  let v=+$('volt').value, rr=values.slice(0,count);
+  if(v<=0 || rr.some(r=>r<=0)) return null;
+  let eq=0, items=[];
+  if(mode==='series'){
+    eq=rr.reduce((a,b)=>a+b,0);
+    const i=v/eq;
+    items=rr.map(r=>({v:i*r,i,p:i*i*r}));
+  }else if(mode==='parallel'){
+    eq=1/rr.reduce((a,r)=>a+1/r,0);
+    items=rr.map(r=>({v,i:v/r,p:v*v/r}));
+  }else{
+    let rs=rr.slice(0,split).reduce((a,b)=>a+b,0), rp=1/rr.slice(split).reduce((a,r)=>a+1/r,0);
+    eq=rs+rp;
+    let i=v/eq, vp=i*rp;
+    items=rr.map((r,k)=>k<split?{v:i*r,i,p:i*i*r}:{v:vp,i:vp/r,p:vp*vp/r});
+  }
+  return {v,eq,i:v/eq,rr,items,p:items.reduce((a,r)=>a+r.p,0)};
+}
+const fmt=x=>Number(x.toFixed(4)).toLocaleString('ko-KR',{maximumFractionDigits:4});
+function analyze(){
+  let o=calc();
+  if(!o){clear();$('error').textContent='전압은 0 V보다 크게, 모든 저항값은 1 Ω 이상으로 설정해 주세요.';return;}
+  result=o;
+  $('totalV').textContent=fmt(o.v)+' V'; $('totalR').textContent=fmt(o.eq)+' Ω'; $('totalI').textContent=fmt(o.i)+' A';
+  $('tbody').innerHTML=o.items.map((r,i)=>`<tr><td>R${i+1}</td><td>${fmt(o.rr[i])}</td><td>${fmt(r.v)}</td><td>${fmt(r.i)}</td><td>${fmt(r.p)}</td></tr>`).join('');
+  $('totals').innerHTML=`<td>전체</td><td>${fmt(o.eq)}</td><td>${fmt(o.v)}</td><td>${fmt(o.i)}</td><td>${fmt(o.p)}</td>`;
+  $('tableWrap').classList.remove('hidden'); $('empty').classList.add('hidden'); $('csv').disabled=false;
+  $('message').textContent = mode==='series' ? '직렬 연결에서는 전류가 같고 각 저항의 전압을 합하면 전원 전압이 됩니다.' : mode==='parallel' ? '병렬 연결에서는 각 저항의 전압이 같고 가지 전류를 모두 합하면 전체 전류가 됩니다.' : '혼합 회로에서는 직렬 부분에는 전체 전류가 흐르고 병렬 부분에서는 전류가 분기됩니다.';
+  draw();
+}
+function changeMode(m){mode=m;document.querySelectorAll('[data-mode]').forEach(b=>b.classList.toggle('active',b.dataset.mode===m));controls()}
+document.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>changeMode(b.dataset.mode));
+$('count').onchange=()=>{count=+$('count').value;controls()};
+$('split').onchange=()=>{split=+$('split').value;controls()};
+$('volt').oninput=()=>{$('voltOut').textContent=$('volt').value+' V';clear()};
+$('run').onclick=analyze;
+$('reset').onclick=()=>{values.fill(0);$('volt').value=0;$('voltOut').textContent='0 V';controls()};
+$('csv').onclick=()=>{
+  if(!result) return;
+  let o=result;
+  let rows=[['회로','저항 개수','직렬 부분 개수','전원 전압(V)','합성 저항(Ω)','전체 전류(A)','저항','저항값(Ω)','저항 전압(V)','저항 전류(A)','저항 전력(W)'],...o.items.map((r,k)=>[mode,count,mode==='mixed'?split:'',o.v,o.eq,o.i,'R'+(k+1),o.rr[k],r.v,r.i,r.p])];
+  let data='\ufeff'+rows.map(row=>row.map(x=>typeof x==='number'?x.toFixed(6):x).join(',')).join('\r\n');
+  let url=URL.createObjectURL(new Blob([data],{type:'text/csv;charset=utf-8;'})), a=document.createElement('a');
+  a.href=url; a.download=`circuit_${mode}_${count}resistors.csv`; document.body.append(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url),1000)
+};
+controls();
+</script></body></html>
